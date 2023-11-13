@@ -2,6 +2,9 @@ const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const context = canvas.getContext('2d');
 
+const boxSize = 300; 
+const boxColor = 'red';
+
 navigator.mediaDevices.getUserMedia({ video: true })
   .then((stream) => {
     video.srcObject = stream;
@@ -12,8 +15,17 @@ navigator.mediaDevices.getUserMedia({ video: true })
 
 video.addEventListener('canplay', () => {
   setInterval(() => {
+    context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    const centerX = (canvas.width - boxSize) / 2;
+    const centerY = (canvas.height - boxSize) / 2;
+
+    context.strokeStyle = boxColor;
+    context.lineWidth = 2;
+    context.strokeRect(centerX, centerY, boxSize, boxSize);
+
+    const imageData = context.getImageData(centerX + 1, centerY + 1, boxSize - 2, boxSize - 2).data;
 
     const colorOccurrences = {};
 
