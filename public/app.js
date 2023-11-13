@@ -2,6 +2,8 @@ const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const context = canvas.getContext('2d');
 
+let previousFrame = null;
+
 navigator.mediaDevices.getUserMedia({ video: true })
   .then((stream) => {
     video.srcObject = stream;
@@ -12,27 +14,50 @@ navigator.mediaDevices.getUserMedia({ video: true })
 
 video.addEventListener('canplay', () => {
   setInterval(() => {
+    context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height).data;
 
-    const colorOccurrences = {};
 
-    for (let i = 0; i < imageData.length; i += 4) {
-      const color = `rgb(${imageData[i]}, ${imageData[i + 1]}, ${imageData[i + 2]})`;
+    const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height).data;
 
-      colorOccurrences[color] = (colorOccurrences[color] || 0) + 1;
+    if (previousFrame) {
+     
+      const diffPixels = getDifferentPixels(currentFrame, previousFrame);
+
+      drawRedRectangles(diffPixels);
+
+      previousFrame = currentFrame.slice();
+    } else {
+      previousFrame = currentFrame.slice();
     }
-
-    let mostCommonColor = null;
-    let maxOccurrences = 0;
-
-    for (const color in colorOccurrences) {
-      if (colorOccurrences[color] > maxOccurrences) {
-        maxOccurrences = colorOccurrences[color];
-        mostCommonColor = color;
-      }
-    }
-
-    document.body.style.backgroundColor = mostCommonColor || 'white';
-  }, 2000); 
+  }, 50); 
 });
+
+function getDifferentPixels(currentFrame, previousFrame) {
+  const diffPixels = [];
+
+  for (let i = 0; i < currentFrame.length; i += 4) {
+    if (
+      Math.abs(currentFrame[i] - previousFrame[i]) > 20 || 
+      Math.abs(currentFrame[i + 1] - previousFrame[i + 1]) > 20 ||
+      Math.abs(currentFrame[i + 2] - previousFrame[i + 2]) > 20
+    ) {
+      diffPixels.push({
+        x: (i / 4) % canvas.width,
+        y: Math.floor(i / (4 * canvas.width)),
+      });
+    }
+  }
+
+  return diffPixels;
+}
+
+function drawRedRectangles(diffPixels) {
+  context.strokeStyle = 'red';
+  context.lineWidth = 2;
+
+  diffPixels.forEach((pixel) => {
+    const rectSize = 10; 
+    context.strokeRect(pixel.x - rectSize / 2, pixel.y - rectSize / 2, rectSize, rectSize);
+  });
+}
