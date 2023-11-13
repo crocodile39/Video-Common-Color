@@ -2,6 +2,9 @@ const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const context = canvas.getContext('2d');
 
+let previousFrame = null;
+let waveCount = 0;
+
 navigator.mediaDevices.getUserMedia({ video: true })
   .then((stream) => {
     video.srcObject = stream;
@@ -12,27 +15,61 @@ navigator.mediaDevices.getUserMedia({ video: true })
 
 video.addEventListener('canplay', () => {
   setInterval(() => {
+    context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height).data;
 
-    const colorOccurrences = {};
+    const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height).data;
 
-    for (let i = 0; i < imageData.length; i += 4) {
-      const color = `rgb(${imageData[i]}, ${imageData[i + 1]}, ${imageData[i + 2]})`;
+    if (previousFrame) {
+      const diffPixels = getDifferentPixels(currentFrame, previousFrame);
 
-      colorOccurrences[color] = (colorOccurrences[color] || 0) + 1;
-    }
+      const waving = isWaving(diffPixels);
 
-    let mostCommonColor = null;
-    let maxOccurrences = 0;
+      if (waving) {
+        waveCount++;
 
-    for (const color in colorOccurrences) {
-      if (colorOccurrences[color] > maxOccurrences) {
-        maxOccurrences = colorOccurrences[color];
-        mostCommonColor = color;
+        if (waveCount % 2 === 0) {
+          document.body.style.backgroundColor = 'green';
+        }
+      } else {
+        waveCount = 0;
+        document.body.style.backgroundColor = 'white';
       }
     }
 
-    document.body.style.backgroundColor = mostCommonColor || 'white';
-  }, 2000); 
+    previousFrame = currentFrame.slice();
+  }, 100); 
 });
+
+function getDifferentPixels(currentFrame, previousFrame) {
+  const diffPixels = [];
+
+  for (let i = 0; i < currentFrame.length; i += 4) {
+    if (
+      Math.abs(currentFrame[i] - previousFrame[i]) > 20 ||
+      Math.abs(currentFrame[i + 1] - previousFrame[i + 1]) > 20 ||
+      Math.abs(currentFrame[i + 2] - previousFrame[i + 2]) > 20
+    ) {
+      diffPixels.push({
+        x: (i / 4) % canvas.width,
+        y: Math.floor(i / (4 * canvas.width)),
+      });
+    }
+  }
+
+  return diffPixels;
+}
+
+function isWaving(diffPixels) {
+  const wavingThreshold = 10000; 
+
+  let wavingCount = 0;
+
+  diffPixels.forEach((pixel) => {
+    if (pixel.y < canvas.height / 2) {
+      wavingCount++;
+    }
+  });
+
+  return wavingCount > wavingThreshold;
+}
